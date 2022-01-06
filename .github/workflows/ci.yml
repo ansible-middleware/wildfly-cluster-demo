@@ -30,7 +30,6 @@ jobs:
 
       - name: Run sanity tests
         run: ansible-test sanity
-        working-directory: ./ansible_collections/redhat/jws
 
       - name: Run molecule test
         run: |
