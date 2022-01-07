@@ -15,11 +15,14 @@
     app:
       name: 'info-1.1.war'
       url: 'https://drive.google.com/uc?export=download&id=1w9ss5okctnjUvRAxhPEPyC7DmbUwmbhb'
+      ansible_distribution: 'RedHat'
   collections:
     - middleware_automation.redhat_csp_download
     - middleware_automation.wildfly
+    - middleware_automation.jcliff
   roles:
     - redhat_csp_download
+    - jcliff
     - wildfly_install
   tasks:
 
@@ -42,18 +45,22 @@
         url: "{{ app.url }}"
         dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
-    - name: "Deploy webapp"
-      include_role:
-        name: jboss_eap
-        tasks_from: jboss_cli.yml
-      vars:
-        jboss_home: "{{ wildfly_home }}"
-        query: "'deploy --force {{ wildfly_install_workdir }}/{{ app.name }}'"
-        jboss_cli_controller_port: "{{ item }}"
+    - set_fact:
+        info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
+
+    - name: "Fine tuning configuration: {{ install_name }}"
+      jcliff:
+        wfly_home: "{{ wildfly_home }}"
+        management_port: "{{ item }}"
+        reconnect_delay: 2000
+        components:
+          - deployments:
+              - name: "{{ info_app_dest | basename }}"
+                path: "{{ info_app_dest }}"
       loop:
-        - 10090
-        - 10190
-        - 10290
+        - '10090'
+        - '10190'
+        - '10290'
 
   post_tasks:
     - include_tasks: validate.yml
