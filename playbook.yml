@@ -1,7 +1,6 @@
 ---
-- name: "JBoss EAP installation and configuration"
+- name: "{{ install_name }} installation and configuration"
   hosts: "{{ hosts_group_name | default('localhost') }}"
-  become: yes
   vars:
     wildfly_install_workdir: '/opt'
     install_name: "{{ override_install_name | default('wildfly') }}"
@@ -15,7 +14,7 @@
     app:
       name: 'info-1.1.war'
       url: 'https://drive.google.com/uc?export=download&id=1w9ss5okctnjUvRAxhPEPyC7DmbUwmbhb'
-      ansible_distribution: 'RedHat'
+    ansible_distribution: 'RedHat'
   collections:
     - middleware_automation.redhat_csp_download
     - middleware_automation.wildfly
@@ -52,7 +51,6 @@
       jcliff:
         wfly_home: "{{ wildfly_home }}"
         management_port: "{{ item }}"
-        reconnect_delay: 2000
         components:
           - deployments:
               - name: "{{ info_app_dest | basename }}"
