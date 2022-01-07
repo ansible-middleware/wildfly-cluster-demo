@@ -1,13 +1,13 @@
 ---
 dependency:
   name: galaxy
-#  options:
-#    requirements-file: molecule/default/requirements.yml
+  options:
+    requirements-file: molecule/default/requirements.yml
 driver:
   name: docker
 platforms:
   - name: instance
-    image: registry.access.redhat.com/ubi8/ubi-init
+    image: registry.access.redhat.com/ubi8/ubi-init:latest
     tmpfs:
       - /run
       - /tmp
@@ -26,10 +26,11 @@ provisioner:
   name: ansible
   playbooks:
     converge: ../../playbook.yml
-  inventory:
-    host_vars:
-      localhost:
-        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    vars:
+      ansible_distribution: 'RedHat'
+      #inventory:
+    #    links:
+    # ansible_python_interpreter: "{{ ansible_playbook_python }}"
 verifier:
   name: ansible
 scenario:
@@ -42,8 +43,8 @@ scenario:
     - create
     - prepare
     - converge
-    - idempotence
+      #- idempotence
     - side_effect
     - verify
     - cleanup
-      #    - destroy
+    - destroy
