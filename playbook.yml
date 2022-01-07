@@ -1,6 +1,7 @@
 ---
 - name: "{{ install_name }} installation and configuration"
   hosts: "{{ hosts_group_name | default('localhost') }}"
+  remote_user: root
   vars:
     wildfly_install_workdir: '/opt'
     install_name: "{{ override_install_name | default('wildfly') }}"
@@ -24,11 +25,12 @@
     - jcliff
     - wildfly_install
   pre_tasks:
-    - file:
+    - name: Change yum repo file ownership, group and permissions
+      ansible.builtin.file:
         path: /etc/yum.repos.d/
         state: directory
-        owner: root
-        group: root
+        # owner: root
+        # group: root
   tasks:
 
     - name: "Set up for Wildfly instance {{ item }}"
