@@ -23,6 +23,12 @@
     - redhat_csp_download
     - jcliff
     - wildfly_install
+  pre_tasks:
+    - file:
+        path: /etc/yum.repos.d/
+        state: directory
+        owner: root
+        group: root
   tasks:
 
     - name: "Set up for Wildfly instance {{ item }}"
