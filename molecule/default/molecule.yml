@@ -7,7 +7,8 @@ driver:
   name: docker
 platforms:
   - name: instance
-    image: registry.access.redhat.com/ubi8/ubi-init:latest
+    image: centos:8
+    privileged: true
     tmpfs:
       - /run
       - /tmp
@@ -16,8 +17,6 @@ platforms:
     capabilities:
       - SYS_ADMIN
     command: "/usr/sbin/init"
-    pre_build_image: true
-    privileged: true
     port_bindings:
       - 8080:8080
     published_ports:
