@@ -24,13 +24,6 @@
     - redhat_csp_download
     - jcliff
     - wildfly_install
-  pre_tasks:
-    - name: Change yum repo file ownership, group and permissions
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/
-        state: directory
-        # owner: root
-        # group: root
   tasks:
 
     - name: "Set up for Wildfly instance {{ item }}"
