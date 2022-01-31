@@ -27,6 +27,7 @@ provisioner:
     converge: ../../playbook.yml
     vars:
       ansible_distribution: 'RedHat'
+      hosts_group_name: wildlfy
       #inventory:
     #    links:
     # ansible_python_interpreter: "{{ ansible_playbook_python }}"
