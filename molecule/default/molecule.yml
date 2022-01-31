@@ -11,25 +11,28 @@ platforms:
     tmpfs:
       - /run
       - /tmp
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
     capabilities:
       - SYS_ADMIN
-    command: "/usr/sbin/init"
+    command: "/lib/systemd/systemd log-level=info unit=sysinit.target"
     pre_build_image: true
     privileged: true
     port_bindings:
       - 8080:8080
     published_ports:
       - 0.0.0.0:8080:8080/TCP
+    groups:
+      - wildfly
 provisioner:
   name: ansible
-  playbooks:
-    converge: ../../playbook.yml
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
   inventory:
-    host_vars:
-      localhost:
-        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    all:
+      hosts_group_name: wildfly
+  playbooks:
+    prepare: prepare.yml
+    converge: ../../playbook.yml
 verifier:
   name: ansible
 scenario:
@@ -46,4 +49,4 @@ scenario:
     - side_effect
     - verify
     - cleanup
-      #    - destroy
+    - destroy

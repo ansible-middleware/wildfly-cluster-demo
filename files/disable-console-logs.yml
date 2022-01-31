@@ -1,0 +1,7 @@
+wildfly-configuration:
+    subsystem:
+        logging:
+          logger:
+            console-handler:
+              CONSOLE:
+                level: ERROR
