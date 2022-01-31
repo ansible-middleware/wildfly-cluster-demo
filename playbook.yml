@@ -1,13 +1,15 @@
 ---
 - name: "JBoss EAP installation and configuration"
-  hosts: "{{ hosts_group_name | default('localhost') }}"
+  hosts: "{{ hosts_group_name | default('all') }}"
   become: yes
   vars:
+    wildfly_version: '26.0.1.Final'
     wildfly_install_workdir: '/opt'
+    wildfly_archive_filename: "wildfly-{{ wildfly_version }}.zip"
     install_name: "{{ override_install_name | default('wildfly') }}"
     wildfly_user: "{{ install_name }}"
     wildfly_config_base: standalone-ha.xml
-    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-preview-{{ wildfly_version }}"
+    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-{{ wildfly_version }}"
     instance_http_ports:
       - 8180
       - 8280
@@ -35,6 +37,10 @@
         instance_id: "{{ item }}"
         service_systemd_env_file: "/etc/{{ install_name }}-{{ item }}.conf"
         service_systemd_conf_file: "/usr/lib/systemd/system/{{ install_name }}-{{ item }}.service"
+        wildfly_enable_yml_config: True
+        wildfly_yml_configs:
+          - disable-console-logs.yml
+          - disable-microprofile-smallrye.yml
       loop: "{{ range(0,3) | list }}"
 
     - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}"
