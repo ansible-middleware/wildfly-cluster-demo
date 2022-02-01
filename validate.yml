@@ -6,10 +6,15 @@
 - wait_for:
     port: "{{ item }}"
 
+- tempfile:
+    state: file
+    suffix: tmp
+  register: get_url_output
+
 - name: "Checks that Wildfly server is running and accessible on port {{ item }}"
   get_url:
     url: "http://localhost:{{ item }}/"
-    dest: '/dev/null'
+    dest: "{{ get_url_output.path }}"
   changed_when: False
 
 - include_tasks: info.yml
