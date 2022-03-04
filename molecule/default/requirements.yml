@@ -1,5 +1,7 @@
 ---
 collections:
+  - name: community.general
+  - name: community.docker
   - middleware_automation.jcliff
   - middleware_automation.wildfly
   - middleware_automation.redhat_csp_download
