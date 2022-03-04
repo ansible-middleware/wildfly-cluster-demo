@@ -7,7 +7,7 @@
     install_name: "{{ override_install_name | default('wildfly') }}"
     wildfly_user: "{{ install_name }}"
     wildfly_config_base: standalone-ha.xml
-    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-preview-{{ wildfly_version }}"
+    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-{{ wildfly_version }}"
     instance_http_ports:
       - 8080
       - 8180
