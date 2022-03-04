@@ -3,7 +3,8 @@
     that:
       - item is defined
 
-- wait_for:
+- name: "Wait for port {{ item }} to be available"
+  wait_for:
     port: "{{ item }}"
 
 - tempfile:
