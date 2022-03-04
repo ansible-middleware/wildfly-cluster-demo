@@ -5,6 +5,7 @@ name: CI
     branches:
       - main
   pull_request:
+  repository_dispatch:
 
 jobs:
   molecule:
