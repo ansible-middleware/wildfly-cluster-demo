@@ -1,0 +1,4 @@
+---
+- import_playbook: ../../playbook.yml
+  vars:
+    hosts_group_name: all

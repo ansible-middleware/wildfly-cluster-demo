@@ -24,12 +24,12 @@ platforms:
 provisioner:
   name: ansible
   playbooks:
-    converge: ../../playbook.yml
+    converge: converge.yml
     vars:
       ansible_distribution: 'RedHat'
   inventory:
     host_vars:
-      hosts_group_name: all
+      hosts_group_name: instance
 verifier:
   name: ansible
 scenario:

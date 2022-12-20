@@ -1,65 +1,67 @@
 ---
-- name: "{{ install_name }} installation and configuration"
-  hosts: "{{ hosts_group_name | default('all') }}"
-  remote_user: root
+- name: "Wildfly {{ wildfly_version }} installation and configuration"
+  hosts: "{{ hosts_group_name | default('localhost') }}"
+  become: true
   vars:
-    wildfly_install_workdir: '/opt'
-    install_name: "{{ override_install_name | default('wildfly') }}"
-    wildfly_user: "{{ install_name }}"
+    wildfly_install_workdir: '/opt/'
     wildfly_config_base: standalone-ha.xml
-    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-{{ wildfly_version }}"
+    wildfly_version: 27.0.1.Final
+    wildfly_java_package_name: java-11-openjdk-headless.x86_64
+    wildfly_home: "/opt/wildfly-{{ wildfly_version }}"
+
     instance_http_ports:
       - 8080
       - 8180
       - 8280
     app:
-      name: 'info-1.1.war'
-      url: 'https://drive.google.com/uc?export=download&id=1w9ss5okctnjUvRAxhPEPyC7DmbUwmbhb'
-    ansible_distribution: 'RedHat'
+      name: 'info-1.2.war'
+      url: 'https://drive.google.com/uc?export=download&id=13K7RCqccgH4zAU1RfOjYMehNaHB0A3Iq'
   collections:
-    - middleware_automation.redhat_csp_download
     - middleware_automation.wildfly
-    - middleware_automation.jcliff
   roles:
-    - redhat_csp_download
-    - jcliff
-    - wildfly_install
+    - role: wildfly_install
   tasks:
 
-    - name: "Set up for Wildfly instance {{ item }}"
-      include_role:
+    - name: "Set up for WildFly instance {{ item }}."
+      ansible.builtin.include_role:
         name: wildfly_systemd
       vars:
         wildfly_config_base: 'standalone-ha.xml'
-        wildfly_basedir_prefix: "/opt/{{ install_name }}-{{ item }}"
-        wildfly_config_name: "{{ install_name }}"
-        wildfly_instance_name: "{{ install_name }}"
         wildfly_instance_id: "{{ item }}"
-        service_systemd_env_file: "/etc/{{ install_name }}-{{ item }}.conf"
-        service_systemd_conf_file: "/usr/lib/systemd/system/{{ install_name }}-{{ item }}.service"
+        instance_name: "wildfly-{{ wildfly_instance_id }}"
+        wildfly_config_name: "{{ instance_name }}.xml"
+        wildfly_basedir_prefix: "/opt/{{ instance_name }}"
+        service_systemd_env_file: "/etc/wildfly-{{ item }}.conf"
+        service_systemd_conf_file: "/usr/lib/systemd/system/wildfly-{{ item }}.service"
       loop: "{{ range(0,3) | list }}"
 
-    - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}"
-      get_url:
-        url: "{{ app.url }}"
-        dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
-
-    - set_fact:
-        info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
-
-    - name: "Fine tuning configuration: {{ install_name }}"
-      jcliff:
-        wfly_home: "{{ wildfly_home }}"
-        management_port: "{{ item }}"
-        components:
-          - deployments:
-              - name: "{{ info_app_dest | basename }}"
-                path: "{{ info_app_dest }}"
-      loop:
-        - '9990'
-        - '10090'
-        - '10190'
-
-  post_tasks:
-    - include_tasks: validate.yml
+    - name: "Wait for each instance HTTP ports to become available."
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
       loop: "{{ instance_http_ports }}"
+
+    - name: "Checks that WildFly server is running and accessible."
+      ansible.builtin.get_url:
+        url: "http://localhost:{{ port }}/"
+        dest: "/opt/{{ port }}"
+      loop: "{{ instance_http_ports }}"
+      loop_control:
+        loop_var: port
+  post_tasks:
+      - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}."
+        ansible.builtin.get_url:
+          url: "{{ app.url }}"
+          dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
+
+      - name: "Deploy webapp"
+        ansible.builtin.include_role:
+          name: wildfly_utils
+          tasks_from: jboss_cli.yml
+        vars:
+          jboss_home: "{{ wildfly_home }}"
+          jboss_cli_query: "'deploy --force {{ wildfly_install_workdir }}/{{ app.name }}'"
+          jboss_cli_controller_port: "{{ item }}"
+        loop:
+          - 9990
+          - 10090
+          - 10190
