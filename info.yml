@@ -8,7 +8,7 @@
     result_file: "/tmp/info-{{ item }}.txt"
 
 - get_url:
-    url: "http://localhost:{{ item }}/info/"
+    url: "http://localhost:{{ item }}/"
     dest: "{{ result_file }}"
   changed_when: False
 
