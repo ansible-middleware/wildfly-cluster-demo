@@ -13,16 +13,14 @@
       - 8180
       - 8280
     app:
-      name: 'info-1.1.war'
-      url: 'https://drive.google.com/uc?export=download&id=1w9ss5okctnjUvRAxhPEPyC7DmbUwmbhb'
+      name: 'helloworld.war'
+      url: 'https://drive.google.com/uc?export=download&id=16HOaSVF0bSYyjc8a8hkEiDlTqgJuGJfe'
     ansible_distribution: 'RedHat'
   collections:
     - middleware_automation.redhat_csp_download
     - middleware_automation.wildfly
-    - middleware_automation.jcliff
   roles:
     - redhat_csp_download
-    - jcliff
     - wildfly_install
   tasks:
 
@@ -48,17 +46,16 @@
         info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
     - name: "Fine tuning configuration: {{ install_name }}"
-      jcliff:
-        wfly_home: "{{ wildfly_home }}"
-        management_port: "{{ item }}"
-        components:
-          - deployments:
-              - name: "{{ info_app_dest | basename }}"
-                path: "{{ info_app_dest }}"
+      include_role:
+        name: wildfly_utils
+        tasks_from: jboss_cli.yml
+      vars:
+        jboss_home: "{{ wildfly_home }}"
+        jboss_cli_query: "'deploy --force {{ wildfly_install_workdir }}/{{ app.name }}'"
+        jboss_cli_controller_port: "{{ item }}"
       loop:
-        - '9990'
-        - '10090'
-        - '10190'
+        - 10090
+        - 10190
 
   post_tasks:
     - include_tasks: validate.yml
