@@ -36,15 +36,17 @@
       loop: "{{ range(0,3) | list }}"
 
     - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}"
-      get_url:
+      become: true
+      ansible.builtin.get_url:
         url: "{{ app.url }}"
         dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
-    - set_fact:
+    - name: "Determin info app absolute path."
+      ansible.builtin.set_fact:
         info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
     - name: "Fine tuning configuration: {{ install_name }}"
-      include_role:
+      ansible.builtin.include_role:
         name: wildfly_utils
         tasks_from: jboss_cli.yml
       vars:
@@ -56,5 +58,6 @@
         - 10190
 
   post_tasks:
-    - include_tasks: validate.yml
+    - name: "Verify that deployments are functional."
+      ansible.builtin.include_tasks: validate.yml
       loop: "{{ instance_http_ports }}"
