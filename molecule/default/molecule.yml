@@ -4,10 +4,8 @@ driver:
 platforms:
   - name: instance
     image: registry.access.redhat.com/ubi9/ubi-init:latest
+    pre_build_image: true
     privileged: true
-    tmpfs:
-      - /run
-      - /tmp
     command: "/usr/sbin/init"
     port_bindings:
       - 8080:8080
@@ -15,6 +13,11 @@ platforms:
       - 0.0.0.0:8080:8080/TCP
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+    ssh_connection:
+      pipelining: false
   playbooks:
     converge: ../../playbook.yml
     vars:

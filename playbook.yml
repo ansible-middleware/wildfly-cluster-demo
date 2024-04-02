@@ -28,11 +28,12 @@
       vars:
         wildfly_config_base: 'standalone-ha.xml'
         wildfly_basedir_prefix: "/opt/{{ install_name }}-{{ item }}"
-        wildfly_config_name: "{{ install_name }}"
-        wildfly_instance_name: "{{ install_name }}"
+        wildfly_config_name: "{{ install_name }}-{{ item }}"
+        wildfly_instance_name: "{{ install_name }}-{{ item }}"
         wildfly_instance_id: "{{ item }}"
         service_systemd_env_file: "/etc/{{ install_name }}-{{ item }}.conf"
         service_systemd_conf_file: "/usr/lib/systemd/system/{{ install_name }}-{{ item }}.service"
+        wildfly_port_range_offset: "{{ 100 * (item) | int }}"
       loop: "{{ range(0,3) | list }}"
 
     - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}"
@@ -41,7 +42,7 @@
         url: "{{ app.url }}"
         dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
-    - name: "Determin info app absolute path."
+    - name: "Determine info app absolute path."
       ansible.builtin.set_fact:
         info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
 
