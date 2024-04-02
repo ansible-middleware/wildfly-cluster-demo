@@ -17,10 +17,8 @@
       url: 'https://drive.google.com/uc?export=download&id=16HOaSVF0bSYyjc8a8hkEiDlTqgJuGJfe'
     ansible_distribution: 'RedHat'
   collections:
-    - middleware_automation.redhat_csp_download
     - middleware_automation.wildfly
   roles:
-    - redhat_csp_download
     - wildfly_install
   tasks:
 
