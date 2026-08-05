@@ -1,42 +1,63 @@
 ---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: molecule/default/requirements.yml
+
 driver:
   name: docker
+
 platforms:
-  - name: instance
+  - name: wildfly-node
     image: registry.access.redhat.com/ubi9/ubi-init:latest
-    pre_build_image: true
     privileged: true
+    # Build an Ansible-compatible image (includes sudo) so role become works.
+    pre_build_image: false
+    cgroupns_mode: host
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
     command: "/usr/sbin/init"
-    port_bindings:
-      - 8080:8080
     published_ports:
-      - 0.0.0.0:8080:8080/TCP
+      - "0.0.0.0:8080:8080/tcp"
+      - "0.0.0.0:8180:8180/tcp"
+      - "0.0.0.0:8280:8280/tcp"
+      - "0.0.0.0:9990:9990/tcp"
+
 provisioner:
   name: ansible
   config_options:
     defaults:
       interpreter_python: auto_silent
+      callbacks_enabled: profile_tasks
+      # Containers often lack a usable HOME; keep module temp under /tmp.
+      remote_tmp: /tmp/.ansible/tmp
     ssh_connection:
       pipelining: false
   playbooks:
     converge: ../../playbook.yml
-    vars:
-      ansible_distribution: 'RedHat'
+    prepare: prepare.yml
+    verify: verify.yml
   inventory:
-    host_vars:
-      hosts_group_name: all
+    group_vars:
+      all:
+        ansible_user: root
+        wildfly_instance_count: 3
+        wildfly_port_range_offset_step: 100
+
 verifier:
   name: ansible
+
 scenario:
+  name: default
   test_sequence:
-    - cleanup
+    - dependency
     - destroy
     - syntax
     - create
     - prepare
     - converge
-      #- idempotence
-    - side_effect
     - verify
-    - cleanup
     - destroy

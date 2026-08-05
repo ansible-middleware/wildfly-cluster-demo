@@ -1,21 +1,49 @@
 ---
-- assert:
+# Validate a single WildFly instance.
+# Called per-instance from playbook.yml post_tasks.
+# Expected vars: instance_http_port, instance_mgmt_port, instance_id
+
+- name: "Assert required variables are set"
+  ansible.builtin.assert:
     that:
-      - item is defined
+      - instance_http_port is defined
+      - instance_mgmt_port is defined
+    quiet: true
 
-- name: "Wait for port {{ item }} to be available"
-  wait_for:
-    port: "{{ item }}"
+- name: "Wait for HTTP port {{ instance_http_port }} (instance {{ instance_id }})"
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ instance_http_port }}"
+    timeout: 120
+    delay: 5
 
-- tempfile:
-    state: file
-    suffix: tmp
-  register: get_url_output
+- name: "Wait for management port {{ instance_mgmt_port }} (instance {{ instance_id }})"
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ instance_mgmt_port }}"
+    timeout: 60
 
-- name: "Checks that Wildfly server is running and accessible on port {{ item }}"
-  get_url:
-    url: "http://localhost:{{ item }}/"
-    dest: "{{ get_url_output.path }}"
-  changed_when: False
+- name: "Check WildFly HTTP response on port {{ instance_http_port }}"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ instance_http_port }}/"
+    method: GET
+    status_code: [200, 302, 404]
+    timeout: 30
+  register: http_check
+  changed_when: false
 
-- include_tasks: info.yml
+- name: "Confirm helloworld app responds on port {{ instance_http_port }}"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ instance_http_port }}/helloworld/"
+    method: GET
+    status_code: [200, 302]
+    timeout: 30
+  register: app_check
+  changed_when: false
+  ignore_errors: true
+
+- name: "Display validation result for instance {{ instance_id }}"
+  ansible.builtin.debug:
+    msg:
+      - "Instance {{ instance_id }} — HTTP port {{ instance_http_port }}: {{ http_check.status }}"
+      - "Instance {{ instance_id }} — App  /helloworld/: {{ app_check.status | default('N/A') }}"

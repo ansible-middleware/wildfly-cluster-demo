@@ -1,0 +1,15 @@
+---
+# ansible-lint configuration
+profile: production
+
+skip_list:
+  # Allow older-style include_role without FQCN in some upstream patterns
+  - yaml[truthy]
+
+exclude_paths:
+  - .git/
+  # Devfile is IDE/workspace metadata, not Ansible content
+  - devfile.yaml
+
+warn_list:
+  - experimental

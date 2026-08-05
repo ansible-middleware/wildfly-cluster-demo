@@ -1,64 +1,72 @@
 ---
-- name: "{{ install_name }} installation and configuration"
-  hosts: "{{ hosts_group_name | default('all') }}"
-  remote_user: root
-  vars:
-    wildfly_install_workdir: '/opt'
-    install_name: "{{ override_install_name | default('wildfly') }}"
-    wildfly_user: "{{ install_name }}"
-    wildfly_config_base: standalone-ha.xml
-    wildfly_home: "{{ wildfly_install_workdir }}/{{ install_name }}-{{ wildfly_version }}"
-    instance_http_ports:
-      - 8080
-      - 8180
-      - 8280
-    app:
-      name: 'helloworld.war'
-      url: 'https://drive.google.com/uc?export=download&id=16HOaSVF0bSYyjc8a8hkEiDlTqgJuGJfe'
-    ansible_distribution: 'RedHat'
-  collections:
-    - middleware_automation.wildfly
+# WildFly Cluster Demo – installs WildFly 40 in HA mode across the target hosts.
+#
+# Usage:
+#   ansible-playbook -i inventory playbook.yml
+#   ansible-playbook -i inventory playbook.yml -e wildfly_version=40.0.0.Final
+#
+# See vars/vars.yml for tuneable variables and README.md for full documentation.
+
+- name: "Deploy WildFly cluster (standalone-ha)"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: true
+  vars_files:
+    - vars/vars.yml
+
+  pre_tasks:
+    - name: "Show deployment summary"
+      ansible.builtin.debug:
+        msg:
+          - "WildFly version  : {{ wildfly_version }}"
+          - "Install workdir  : {{ wildfly_install_workdir }}"
+          - "Instances (0..{{ wildfly_instance_count - 1 }}): port-offset x{{ wildfly_port_range_offset_step }}"
+          - "App to deploy    : {{ wildfly_app.name }}"
+
   roles:
-    - wildfly_install
+    - role: middleware_automation.wildfly.wildfly_install
+
   tasks:
-
-    - name: "Set up for Wildfly instance {{ item }}"
-      include_role:
-        name: wildfly_systemd
-      vars:
-        wildfly_config_base: 'standalone-ha.xml'
-        wildfly_basedir_prefix: "/opt/{{ install_name }}-{{ item }}"
-        wildfly_config_name: "{{ install_name }}-{{ item }}"
-        wildfly_instance_name: "{{ install_name }}-{{ item }}"
-        wildfly_instance_id: "{{ item }}"
-        service_systemd_env_file: "/etc/{{ install_name }}-{{ item }}.conf"
-        service_systemd_conf_file: "/usr/lib/systemd/system/{{ install_name }}-{{ item }}.service"
-        wildfly_port_range_offset: "{{ 100 * (item) | int }}"
-      loop: "{{ range(0,3) | list }}"
-
-    - name: "Ensures webapp {{ app.name }} has been retrieved from {{ app.url }}"
-      become: true
-      ansible.builtin.get_url:
-        url: "{{ app.url }}"
-        dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
-
-    - name: "Determine info app absolute path."
-      ansible.builtin.set_fact:
-        info_app_dest: "{{ wildfly_install_workdir }}/{{ app.name }}"
-
-    - name: "Fine tuning configuration: {{ install_name }}"
+    - name: "Configure systemd unit for WildFly instance"
       ansible.builtin.include_role:
-        name: wildfly_utils
-        tasks_from: jboss_cli.yml
+        name: middleware_automation.wildfly.wildfly_systemd
       vars:
-        jboss_home: "{{ wildfly_home }}"
-        jboss_cli_query: "'deploy --force {{ wildfly_install_workdir }}/{{ app.name }}'"
-        jboss_cli_controller_port: "{{ item }}"
-      loop:
-        - 10090
-        - 10190
+        wildfly_instance_name: "wildfly-{{ item }}"
+        wildfly_service_name: "wildfly-{{ item }}"
+        wildfly_node_id: "{{ inventory_hostname_short }}-{{ item }}"
+        wildfly_config_base: "{{ wildfly_ha_config }}"
+        wildfly_port_range_offset: "{{ item | int * wildfly_port_range_offset_step }}"
+        # Each colocated instance needs its own server base directory.
+        wildfly_basedir_prefix: "{{ wildfly_install_workdir }}instances/wildfly-{{ item }}"
+        wildfly_bind_addr: "{{ wildfly_public_bind_addr }}"
+        wildfly_bind_addr_private: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+        wildfly_bind_addr_management: "127.0.0.1"
+        wildfly_multicast_addr: "{{ wildfly_cluster_multicast_addr }}"
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+
+    - name: "Apply pending service restarts before deploying apps"
+      ansible.builtin.meta: flush_handlers
+
+    - name: "Wait for all management ports to become available"
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ 9990 + (item | int * wildfly_port_range_offset_step) }}"
+        timeout: 120
+        delay: 5
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+
+    # App deploy follows wildfly collection molecule example, looped for colocated instances:
+    # https://github.com/ansible-middleware/wildfly/blob/main/molecule/app_deploy_standalone/converge.yml
+    - name: "Deploy application using wildfly_app_deploy role"
+      ansible.builtin.include_tasks: deploy_app.yml
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+      loop_control:
+        label: "instance {{ item }} (mgmt {{ wildfly_instance_mgmt_base_port + (item | int * wildfly_port_range_offset_step) }})"
 
   post_tasks:
-    - name: "Verify that deployments are functional."
+    - name: "Validate WildFly instance is running and app is accessible"
       ansible.builtin.include_tasks: validate.yml
-      loop: "{{ instance_http_ports }}"
+      vars:
+        instance_http_port: "{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}"
+        instance_mgmt_port: "{{ wildfly_instance_mgmt_base_port + (item | int * wildfly_port_range_offset_step) }}"
+        instance_id: "{{ item }}"
+      loop: "{{ range(0, wildfly_instance_count) | list }}"

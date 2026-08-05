@@ -1,0 +1,80 @@
+---
+# Molecule prepare – builds a minimal helloworld WAR on the Ansible controller.
+# wildfly_app_deploy copies that artifact to the target host.
+# WildFly quickstart GitHub releases ship source zips only (no prebuilt .war).
+- name: Prepare
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    helloworld_stage_dir: /tmp/helloworld-war
+    helloworld_war_path: /tmp/helloworld.war
+  tasks:
+    - name: "Create staging directory for helloworld WAR"
+      ansible.builtin.file:
+        path: "{{ helloworld_stage_dir }}/WEB-INF"
+        state: directory
+        mode: "0755"
+
+    - name: "Write helloworld index page"
+      ansible.builtin.copy:
+        dest: "{{ helloworld_stage_dir }}/index.html"
+        mode: "0644"
+        content: |
+          <!DOCTYPE html>
+          <html lang="en">
+            <head><meta charset="utf-8"><title>Hello World</title></head>
+            <body><h1>Hello World!</h1></body>
+          </html>
+
+    - name: "Write helloworld web.xml"
+      ansible.builtin.copy:
+        dest: "{{ helloworld_stage_dir }}/WEB-INF/web.xml"
+        mode: "0644"
+        content: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+                   version="6.0">
+            <display-name>helloworld</display-name>
+            <welcome-file-list>
+              <welcome-file>index.html</welcome-file>
+            </welcome-file-list>
+          </web-app>
+
+    - name: "Write WAR packaging script"
+      ansible.builtin.copy:
+        dest: /tmp/package_helloworld_war.py
+        mode: "0755"
+        content: |
+          #!/usr/bin/env python3
+          import pathlib
+          import zipfile
+
+          root = pathlib.Path("{{ helloworld_stage_dir }}")
+          war = pathlib.Path("{{ helloworld_war_path }}")
+          with zipfile.ZipFile(war, "w") as zf:
+              for path in root.rglob("*"):
+                  if path.is_file():
+                      zf.write(path, path.relative_to(root).as_posix())
+
+    - name: "Package helloworld.war"
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /tmp/package_helloworld_war.py
+      args:
+        creates: "{{ helloworld_war_path }}"
+
+    - name: "Confirm WAR was packaged"
+      ansible.builtin.stat:
+        path: "{{ helloworld_war_path }}"
+      register: war_stat
+
+    - name: "Assert WAR is present"
+      ansible.builtin.assert:
+        that:
+          - war_stat.stat.exists
+          - war_stat.stat.size > 0
+        quiet: true

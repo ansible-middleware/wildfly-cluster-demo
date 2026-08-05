@@ -1,20 +1,30 @@
 ---
-- assert:
+# Display runtime info for a single WildFly instance via management HTTP API.
+# Expected var: instance_mgmt_port
+
+- name: "Assert required variables are set"
+  ansible.builtin.assert:
     that:
-      - item is defined
+      - instance_mgmt_port is defined
     quiet: true
 
-- set_fact:
-    result_file: "/tmp/info-{{ item }}.txt"
+- name: "Read WildFly server info via management API (port {{ instance_mgmt_port }})"
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ instance_mgmt_port }}/management"
+    method: POST
+    body_format: json
+    body:
+      operation: "read-attribute"
+      name: "server-state"
+    headers:
+      Content-Type: "application/json"
+    status_code: [200]
+    timeout: 15
+  register: mgmt_info
+  changed_when: false
+  ignore_errors: true
 
-- get_url:
-    url: "http://localhost:{{ item }}/"
-    dest: "{{ result_file }}"
-  changed_when: False
-
-- slurp:
-    src: "{{ result_file }}"
-  register: info_res
-
-- debug:
-    msg: "{{ info_res['content'] | b64decode }}"
+- name: "Show server state for instance on port {{ instance_mgmt_port }}"
+  ansible.builtin.debug:
+    msg: "WildFly (port {{ instance_mgmt_port }}) state: {{ mgmt_info.json.result | default('unavailable') }}"
+  when: mgmt_info is not failed

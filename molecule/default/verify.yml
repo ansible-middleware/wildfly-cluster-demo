@@ -1,0 +1,63 @@
+---
+# Molecule verify – checks each WildFly instance is up and the app is deployed.
+- name: Verify
+  hosts: all
+  gather_facts: false
+  vars:
+    wildfly_instance_count: 3
+    wildfly_port_range_offset_step: 100
+    wildfly_instance_http_base_port: 8080
+    wildfly_instance_mgmt_base_port: 9990
+  tasks:
+    - name: "Wait for HTTP ports"
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}"
+        timeout: 60
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+      loop_control:
+        label: "{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}"
+
+    - name: "Verify WildFly HTTP root"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}/"
+        method: GET
+        status_code: [200, 302, 404]
+        timeout: 30
+      register: http_result
+      changed_when: false
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+      loop_control:
+        label: "{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}"
+
+    - name: "Verify helloworld app"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}/helloworld/"
+        method: GET
+        status_code: [200, 302]
+        timeout: 30
+      register: app_result
+      changed_when: false
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+      loop_control:
+        label: "{{ wildfly_instance_http_base_port + (item | int * wildfly_port_range_offset_step) }}"
+
+    - name: "Verify management interface is listening"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ wildfly_instance_mgmt_base_port + (item | int * wildfly_port_range_offset_step) }}/management"
+        method: GET
+        # ManagementRealm requires auth; 401 means the interface is up.
+        status_code: [200, 401]
+        timeout: 15
+      register: mgmt_result
+      changed_when: false
+      loop: "{{ range(0, wildfly_instance_count) | list }}"
+      loop_control:
+        label: "{{ wildfly_instance_mgmt_base_port + (item | int * wildfly_port_range_offset_step) }}"
+
+    - name: "Show verification summary"
+      ansible.builtin.debug:
+        msg:
+          - "HTTP root {{ http_result.results | map(attribute='status') | list }}"
+          - "App /helloworld/ {{ app_result.results | map(attribute='status') | list }}"
+          - "Management {{ mgmt_result.results | map(attribute='status') | list }}"

@@ -1,0 +1,25 @@
+---
+# Deploy helloworld.war to one WildFly instance.
+# Pattern follows:
+#   https://github.com/ansible-middleware/wildfly/blob/main/molecule/app_deploy_standalone/converge.yml
+#
+# Extra step for colocated instances: pin jboss_cli_controller_port as a fact.
+# wildfly_utils set_fact's that var (and resets it to 9990), which outranks
+# include_role params and breaks looped port offsets.
+
+- name: "Pin management CLI port for instance {{ item }}"
+  ansible.builtin.set_fact:
+    jboss_cli_controller_port: "{{ wildfly_instance_mgmt_base_port + (item | int * wildfly_port_range_offset_step | int) }}"
+    deployment_exists: false
+
+- name: "Deploy application using wildfly_app_deploy role"
+  ansible.builtin.include_role:
+    name: middleware_automation.wildfly.wildfly_app_deploy
+  vars:
+    wildfly_app_deployment_file: "{{ wildfly_app.local_path }}"
+    wildfly_app_deploy_name: "{{ wildfly_app.name }}"
+    # Expand path here — do not pass wildfly_home: "{{ wildfly_home }}" (recursive).
+    wildfly_home: "{{ wildfly_install_workdir }}wildfly-{{ wildfly_version }}"
+    jboss_cli_controller_host: "127.0.0.1"
+    wildfly_port_range_offset: 0
+    wildfly_apps_jboss_cli_deploy_force: true

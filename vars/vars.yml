@@ -1,0 +1,51 @@
+---
+# ============================================================
+# WildFly Cluster Demo – Central Variables
+# ============================================================
+
+# --------------- WildFly version & paths --------------------
+wildfly_version: '40.0.0.Final'
+wildfly_install_workdir: '/opt/wildfly/'
+wildfly_home: "{{ wildfly_install_workdir }}wildfly-{{ wildfly_version }}"
+wildfly_user: 'wildfly'
+wildfly_group: 'wildfly'
+
+# --------------- Java ----------------------------------------
+# JDK 21 matches the UBI 9 / RHEL 9 Molecule image and supported WildFly 40 runtime.
+wildfly_java_version: 21
+wildfly_java_opts: '-Xmx1024M -Xms512M'
+
+# --------------- HA / Cluster --------------------------------
+# Number of WildFly instances to run on each host (collocated cluster demo)
+wildfly_instance_count: 3
+
+# standalone-ha.xml for JGroups-based HA clustering
+wildfly_ha_config: 'standalone-ha.xml'
+
+# Each instance gets an HTTP port-offset of N * wildfly_port_range_offset_step
+# Instance 0: 8080 / 9990   Instance 1: 8180 / 10090   Instance 2: 8280 / 10190
+wildfly_port_range_offset_step: 100
+
+# Multicast address used by JGroups for cluster discovery
+wildfly_cluster_multicast_addr: '230.0.0.4'
+
+# Public bind address passed into wildfly_systemd (avoid self-referential defaults)
+wildfly_public_bind_addr: '0.0.0.0'
+
+# --------------- Application ---------------------------------
+wildfly_app:
+  name: 'helloworld.war'
+  # Path on the Ansible controller; wildfly_app_deploy copies it to the target.
+  # Molecule prepare builds a minimal helloworld.war here.
+  local_path: '/tmp/helloworld.war'
+
+# --------------- Systemd ------------------------------------
+wildfly_systemd_unit_enabled: true
+wildfly_systemd_wait_for_log: true
+wildfly_systemd_wait_for_timeout: 120
+
+# --------------- Validation ----------------------------------
+# Ports validated in post_tasks (derived automatically via offset, defined here
+# for documentation clarity).
+wildfly_instance_http_base_port: 8080
+wildfly_instance_mgmt_base_port: 9990

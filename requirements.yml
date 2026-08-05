@@ -1,9 +1,7 @@
 ---
+# Root requirements.yml — install all collections needed to run the demo.
+# Usage:  ansible-galaxy collection install -r requirements.yml
 collections:
-  - name: community.general
-    version: ">=10.0.0"
-  - name: community.docker
-    version: ">=4.0.0"
   - name: ansible.posix
     version: ">=1.5.4"
   - name: middleware_automation.common
